@@ -1,52 +1,56 @@
-
-### Step-by-Step Documentation for Admin Login Page (`admin/login.php`)
+### Step-by-Step Documentation for Add Product Page (`admin/add_product.php`)
 
 ---
 
 #### Purpose
-The **Admin Login Page** authenticates administrators, granting access to the admin dashboard.
+The **Add Product Page** allows administrators to create new product entries by filling out a form with the product’s name, price, description, and image.
 
 ---
 
-#### 1. PHP Logic for Authentication
-The PHP code at the top handles login functionality:
+#### 1. Session Authentication
+Ensure only logged-in admins can access this page:
 
 ```php
 <?php
-include '../includes/db.php';
 session_start();
-
-if (isset($_POST['login'])) {
-    $email = $_POST['email'];
-    $password = $_POST['password'];
-
-    // Check if the email belongs to an admin
-    $stmt = $conn->prepare("SELECT * FROM users WHERE email = ? AND role = 'admin'");
-    $stmt->execute([$email]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if ($user && password_verify($password, $user['password'])) {
-        // Start admin session and redirect to dashboard
-        $_SESSION['admin_id'] = $user['id'];
-        header("Location: dashboard.php");
-        exit();
-    } else {
-        echo "<p style='color:red; text-align:center;'>Invalid credentials or not an admin.</p>";
-    }
+if (!isset($_SESSION['admin_id'])) {
+    header("Location: login.php");
+    exit();
 }
 ?>
 ```
 
-**Key Features:**
-- Validates that the `email` belongs to an admin.
-- Verifies the password using `password_verify()`.
-- Starts a session for authenticated admins.
-- Redirects to the `dashboard.php` page upon successful login.
+---
+
+#### 2. PHP Logic for Adding Products
+The following PHP code handles form submission and saves the new product to the database:
+
+```php
+<?php
+include '../includes/db.php';
+
+if (isset($_POST['add_product'])) {
+    $name = $_POST['name'];
+    $price = $_POST['price'];
+    $description = $_POST['description'];
+    $image = $_FILES['image']['name'];
+
+    // Upload the image to the 'images' folder
+    move_uploaded_file($_FILES['image']['tmp_name'], "../images/$image");
+
+    // Insert product details into the database
+    $stmt = $conn->prepare("INSERT INTO products (name, price, description, image) VALUES (?, ?, ?, ?)");
+    $stmt->execute([$name, $price, $description, $image]);
+
+    echo "Product added successfully!";
+}
+?>
+```
 
 ---
 
-#### 2. HTML Form for Login
-This is the front-end structure for the admin login page:
+#### 3. HTML Form for Adding Products
+The form captures all necessary product details:
 
 ```html
 <!DOCTYPE html>
@@ -54,85 +58,111 @@ This is the front-end structure for the admin login page:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Login</title>
+    <title>Add Product</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f4f7fa;
+            background-color: #f4f4f4;
         }
-        .login-container {
-            width: 100%;
-            max-width: 400px;
-            margin: 100px auto;
+        .container {
+            width: 50%;
+            margin: 50px auto;
             background-color: #fff;
             padding: 30px;
-            border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
         }
         h2 {
             text-align: center;
-            color: #333;
-            margin-bottom: 20px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
         }
         label {
-            display: block;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
             font-weight: bold;
-            color: #555;
         }
-        input {
-            width: 100%;
+        input, textarea {
+            margin-bottom: 20px;
             padding: 10px;
-            margin: 10px 0 20px;
-            border: 1px solid #ddd;
+            border: 1px solid #ccc;
             border-radius: 4px;
         }
         button {
-            width: 100%;
-            padding: 10px;
-            background-color: #28a745;
-            border: none;
+            background-color: #4CAF50;
             color: white;
-            font-size: 16px;
+            padding: 15px;
+            border: none;
             border-radius: 4px;
             cursor: pointer;
         }
         button:hover {
-            background-color: #218838;
+            background-color: #45a049;
+        }
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .back-link a {
+            text-decoration: none;
+            color: #4CAF50;
         }
     </style>
 </head>
 <body>
+    <div class="container">
+        <h2>Add Product</h2>
+        <form method="POST" enctype="multipart/form-data">
+            <label for="name">Product Name:</label>
+            <input type="text" name="name" id="name" required>
 
-    <div class="login-container">
-        <h2>Admin Login</h2>
-        <form method="POST">
-            <label for="email">Email</label>
-            <input type="email" name="email" id="email" required>
+            <label for="price">Price:</label>
+            <input type="number" step="0.01" name="price" id="price" required>
 
-            <label for="password">Password</label>
-            <input type="password" name="password" id="password" required>
+            <label for="description">Description:</label>
+            <textarea name="description" id="description" required></textarea>
 
-            <button type="submit" name="login">Login</button>
+            <label for="image">Image:</label>
+            <input type="file" name="image" id="image" required>
+
+            <button type="submit" name="add_product">Add Product</button>
         </form>
+        <div class="back-link">
+            <a href="manage_products.php">Back to Manage Products</a>
+        </div>
     </div>
-
 </body>
 </html>
 ```
 
-**Features:**
-- The form uses `POST` to securely submit credentials.
-- Fields include `email` and `password`.
+---
+
+#### Features
+1. **Form Inputs**:
+   - **Product Name** (`name`)
+   - **Price** (`price`)
+   - **Description** (`description`)
+   - **Image Upload** (`image`)
+
+2. **Image Handling**:
+   - Images are uploaded to the `images/` folder.
+   - The filename is saved in the database.
+
+3. **Database Insertion**:
+   - Product details are stored in the `products` table.
+
+4. **Feedback**:
+   - Displays a success message after the product is added.
 
 ---
 
-#### 3. Test the Admin Login Page
-1. Ensure the `users` table has an admin user (`role = 'admin'`).
-2. Open the page at `http://localhost/ecommerce/admin/login.php`.
-3. Test login with valid and invalid admin credentials.
+#### 4. Testing the Add Product Page
+1. Log in as an admin.
+2. Navigate to `http://localhost/ecommerce/admin/add_product.php`.
+3. Fill out the form and submit.
+4. Verify:
+   - The product is added to the `products` table.
+   - The image file is uploaded to the `images/` folder.
 
 ---
-
-### Next Step
-The next page is **Admin Logout (`admin/logout.php`)** to securely end admin sessions. Let’s proceed!
